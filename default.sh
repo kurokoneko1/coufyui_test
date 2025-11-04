@@ -18,7 +18,6 @@ PIP_PACKAGES=(
 NODES=(
     #"https://github.com/ltdrdata/ComfyUI-Manager"
     #"https://github.com/cubiq/ComfyUI_essentials"
-    #"https://github.com/asagi4/comfyui-prompt-control"
 )
 
 WORKFLOWS=(
@@ -26,8 +25,7 @@ WORKFLOWS=(
 )
 
 CHECKPOINT_MODELS=(
-    "https://civitai.com/api/download/models/2290816?token=c9c0cc6f472c6337d9f8d681713c4e78"
-
+    "https://civitai.com/api/download/models/798204?type=Model&format=SafeTensor&size=full&fp=fp16"
 )
 
 UNET_MODELS=(
