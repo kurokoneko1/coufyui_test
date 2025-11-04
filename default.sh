@@ -26,7 +26,7 @@ WORKFLOWS=(
 )
 
 CHECKPOINT_MODELS=(
-    #"https://civitai.com/api/download/models/2290816?token=c9c0cc6f472c6337d9f8d681713c4e78"
+    "https://civitai.com/api/download/models/2290816?token=c9c0cc6f472c6337d9f8d681713c4e78"
 )
 
 UNET_MODELS=(
@@ -59,7 +59,7 @@ function provisioning_start() {
         "${COMFYUI_DIR}/models/unet" \
         "${UNET_MODELS[@]}"
     provisioning_get_files \
-        "${COMFYUI_DIR}/models/lora" \
+        "${COMFYUI_DIR}/models/loras" \
         "${LORA_MODELS[@]}"
     provisioning_get_files \
         "${COMFYUI_DIR}/models/controlnet" \
