@@ -19,6 +19,9 @@ NODES=(
     #"https://github.com/ltdrdata/ComfyUI-Manager"
     #"https://github.com/cubiq/ComfyUI_essentials"
     "https://github.com/asagi4/comfyui-prompt-control"
+    "https://github.com/pamparamm/ComfyUI-ppm"
+    "https://github.com/rgthree/rgthree-comfy"
+    "https://github.com/chrisgoringe/cg-use-everywhere"
 )
 
 WORKFLOWS=(
