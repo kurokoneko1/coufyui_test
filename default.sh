@@ -88,28 +88,70 @@ function provisioning_get_pip_packages() {
     fi
 }
 
+
 function provisioning_get_nodes() {
     for repo in "${NODES[@]}"; do
         dir="${repo##*/}"
         path="${COMFYUI_DIR}/custom_nodes/${dir}"
         requirements="${path}/requirements.txt"
+        
+        # --- 追加: 特定のノードのバージョンを指定する ---
+        target_tag=""
+        if [[ "$repo" == *"comfyui-prompt-control"* ]]; then
+            target_tag="2.1.1" # ここに安定版のタグ名やハッシュを指定
+        fi
+        # ----------------------------------------------
+
         if [[ -d $path ]]; then
             if [[ ${AUTO_UPDATE,,} != "false" ]]; then
                 printf "Updating node: %s...\n" "${repo}"
-                ( cd "$path" && git pull )
-                if [[ -e $requirements ]]; then
-                   pip install --no-cache-dir -r "$requirements"
-                fi
+                ( cd "$path" && git fetch --all && git pull )
             fi
         else
             printf "Downloading node: %s...\n" "${repo}"
             git clone "${repo}" "${path}" --recursive
-            if [[ -e $requirements ]]; then
-                pip install --no-cache-dir -r "${requirements}"
-            fi
+        fi
+
+        # --- 追加: 指定したタグがあれば切り替える ---
+        if [[ -n $target_tag ]]; then
+            printf "Switching %s to version %s...\n" "${dir}" "${target_tag}"
+            ( cd "$path" && git checkout "$target_tag" )
+        fi
+        # ----------------------------------------------
+
+        # requirementsのインストール
+        if [[ -e $requirements ]]; then
+            pip install --no-cache-dir -r "${requirements}"
         fi
     done
 }
+
+
+
+
+
+# function provisioning_get_nodes() {
+#     for repo in "${NODES[@]}"; do
+#         dir="${repo##*/}"
+#         path="${COMFYUI_DIR}/custom_nodes/${dir}"
+#         requirements="${path}/requirements.txt"
+#         if [[ -d $path ]]; then
+#             if [[ ${AUTO_UPDATE,,} != "false" ]]; then
+#                 printf "Updating node: %s...\n" "${repo}"
+#                 ( cd "$path" && git pull )
+#                 if [[ -e $requirements ]]; then
+#                    pip install --no-cache-dir -r "$requirements"
+#                 fi
+#             fi
+#         else
+#             printf "Downloading node: %s...\n" "${repo}"
+#             git clone "${repo}" "${path}" --recursive
+#             if [[ -e $requirements ]]; then
+#                 pip install --no-cache-dir -r "${requirements}"
+#             fi
+#         fi
+#     done
+# }
 
 function provisioning_get_files() {
     if [[ -z $2 ]]; then return 1; fi
