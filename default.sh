@@ -29,14 +29,15 @@ WORKFLOWS=(
 )
 
 CHECKPOINT_MODELS=(
-    "https://civitai.com/api/download/models/2290816?token=c9c0cc6f472c6337d9f8d681713c4e78"
+    # トークンはURLに直書きせず CIVITAI_TOKEN 環境変数で管理してください
+    "https://civitai.com/api/download/models/2290816"
 )
 
 UNET_MODELS=(
 )
 
 LORA_MODELS=(
-    "https://civitai.com/api/download/models/1419456?token=c9c0cc6f472c6337d9f8d681713c4e78"
+    "https://civitai.com/api/download/models/1419456"
 )
 
 VAE_MODELS=(
@@ -46,6 +47,11 @@ ESRGAN_MODELS=(
 )
 
 CONTROLNET_MODELS=(
+)
+
+# ノードごとに固定バージョン（タグ or コミットハッシュ）を指定する連想配列
+declare -A NODE_VERSIONS=(
+    ["comfyui-prompt-control"]="2.1.1"
 )
 
 ### DO NOT EDIT BELOW HERE UNLESS YOU KNOW WHAT YOU ARE DOING ###
@@ -78,84 +84,64 @@ function provisioning_start() {
 
 function provisioning_get_apt_packages() {
     if [[ -n $APT_PACKAGES ]]; then
-            sudo $APT_INSTALL ${APT_PACKAGES[@]}
+        sudo $APT_INSTALL ${APT_PACKAGES[@]}
     fi
 }
 
 function provisioning_get_pip_packages() {
     if [[ -n $PIP_PACKAGES ]]; then
-            pip install --no-cache-dir ${PIP_PACKAGES[@]}
+        pip install --no-cache-dir ${PIP_PACKAGES[@]}
     fi
 }
-
-
-# function provisioning_get_nodes() {
-#     for repo in "${NODES[@]}"; do
-#         dir="${repo##*/}"
-#         path="${COMFYUI_DIR}/custom_nodes/${dir}"
-#         requirements="${path}/requirements.txt"
-        
-#         # --- 追加: 特定のノードのバージョンを指定する ---
-#         target_tag=""
-#         if [[ "$repo" == *"comfyui-prompt-control"* ]]; then
-#             target_tag="2.1.1" # ここに安定版のタグ名やハッシュを指定
-#         fi
-#         # ----------------------------------------------
-
-#         if [[ -d $path ]]; then
-#             if [[ ${AUTO_UPDATE,,} != "false" ]]; then
-#                 printf "Updating node: %s...\n" "${repo}"
-#                 ( cd "$path" && git fetch --all && git pull )
-#             fi
-#         else
-#             printf "Downloading node: %s...\n" "${repo}"
-#             git clone "${repo}" "${path}" --recursive
-#         fi
-
-#         # --- 追加: 指定したタグがあれば切り替える ---
-#         if [[ -n $target_tag ]]; then
-#             printf "Switching %s to version %s...\n" "${dir}" "${target_tag}"
-#             ( cd "$path" && git checkout "$target_tag" )
-#         fi
-#         # ----------------------------------------------
-
-#         # requirementsのインストール
-#         if [[ -e $requirements ]]; then
-#             pip install --no-cache-dir -r "${requirements}"
-#         fi
-#     done
-# }
-
-
-
-
 
 function provisioning_get_nodes() {
     for repo in "${NODES[@]}"; do
         dir="${repo##*/}"
         path="${COMFYUI_DIR}/custom_nodes/${dir}"
         requirements="${path}/requirements.txt"
+
+        # 連想配列からバージョンを取得（未指定なら空文字）
+        target_tag="${NODE_VERSIONS[$dir]:-}"
+
         if [[ -d $path ]]; then
             if [[ ${AUTO_UPDATE,,} != "false" ]]; then
                 printf "Updating node: %s...\n" "${repo}"
-                ( cd "$path" && git pull )
-                if [[ -e $requirements ]]; then
-                   pip install --no-cache-dir -r "$requirements"
+                ( cd "$path" && git fetch --all )
+
+                if [[ -n $target_tag ]]; then
+                    # バージョン固定あり: fetch 後に指定タグへ切り替え
+                    printf "Switching %s to version %s...\n" "${dir}" "${target_tag}"
+                    ( cd "$path" && git checkout "$target_tag" )
+                else
+                    # バージョン固定なし: 通常の pull
+                    ( cd "$path" && git pull )
+                fi
+            else
+                # AUTO_UPDATE=false でも、バージョン固定は初回以外も適用する
+                if [[ -n $target_tag ]]; then
+                    printf "Ensuring %s is at version %s...\n" "${dir}" "${target_tag}"
+                    ( cd "$path" && git fetch --all && git checkout "$target_tag" )
                 fi
             fi
         else
             printf "Downloading node: %s...\n" "${repo}"
             git clone "${repo}" "${path}" --recursive
-            if [[ -e $requirements ]]; then
-                pip install --no-cache-dir -r "${requirements}"
+
+            if [[ -n $target_tag ]]; then
+                printf "Switching %s to version %s...\n" "${dir}" "${target_tag}"
+                ( cd "$path" && git checkout "$target_tag" )
             fi
+        fi
+
+        if [[ -e $requirements ]]; then
+            pip install --no-cache-dir -r "${requirements}"
         fi
     done
 }
 
 function provisioning_get_files() {
     if [[ -z $2 ]]; then return 1; fi
-    
+
     dir="$1"
     mkdir -p "$dir"
     shift
@@ -184,7 +170,6 @@ function provisioning_has_valid_hf_token() {
         -H "Authorization: Bearer $HF_TOKEN" \
         -H "Content-Type: application/json")
 
-    # Check if the token is valid
     if [ "$response" -eq 200 ]; then
         return 0
     else
@@ -200,7 +185,6 @@ function provisioning_has_valid_civitai_token() {
         -H "Authorization: Bearer $CIVITAI_TOKEN" \
         -H "Content-Type: application/json")
 
-    # Check if the token is valid
     if [ "$response" -eq 200 ]; then
         return 0
     else
@@ -212,11 +196,11 @@ function provisioning_has_valid_civitai_token() {
 function provisioning_download() {
     if [[ -n $HF_TOKEN && $1 =~ ^https://([a-zA-Z0-9_-]+\.)?huggingface\.co(/|$|\?) ]]; then
         auth_token="$HF_TOKEN"
-    elif 
-        [[ -n $CIVITAI_TOKEN && $1 =~ ^https://([a-zA-Z0-9_-]+\.)?civitai\.com(/|$|\?) ]]; then
+    elif [[ -n $CIVITAI_TOKEN && $1 =~ ^https://([a-zA-Z0-9_-]+\.)?civitai\.com(/|$|\?) ]]; then
         auth_token="$CIVITAI_TOKEN"
     fi
-    if [[ -n $auth_token ]];then
+
+    if [[ -n $auth_token ]]; then
         wget --header="Authorization: Bearer $auth_token" -qnc --content-disposition --show-progress -e dotbytes="${3:-4M}" -P "$2" "$1"
     else
         wget -qnc --content-disposition --show-progress -e dotbytes="${3:-4M}" -P "$2" "$1"
