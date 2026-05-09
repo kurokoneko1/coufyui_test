@@ -52,6 +52,7 @@ CONTROLNET_MODELS=(
 # ノードごとに固定バージョン（タグ or コミットハッシュ）を指定する連想配列
 declare -A NODE_VERSIONS=(
     ["comfyui-prompt-control"]="v2.1.3"
+    ["ComfyUI-ppm"]="v1.1.1"
 )
 
 ### DO NOT EDIT BELOW HERE UNLESS YOU KNOW WHAT YOU ARE DOING ###
